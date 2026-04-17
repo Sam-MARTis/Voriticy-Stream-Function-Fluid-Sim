@@ -1,11 +1,12 @@
 #include "aux.hpp"
-
-void solve_vorticity_transport(float* ω, const float* x, const float* u, const float u0, const int nx, const int ny, const float dx, const float dy, const float nu, const float dt) {
-    advect_vorticity(ω, x, u, u0, nx, ny, dx, dy, dt);
-    apply_viscosity(ω, nx, ny, nu, dx, dy, dt);
+#include <algorithm> 
+#include <cmath>
+void solve_vorticity_transport(float* ω, const float* x, const float* u, const float u0, const int nx, const int ny, const float dx, const float dy, const float nu, const float dt, const float* dims) {
+    advect_vorticity(ω, x, u, u0, nx, ny, dx, dy, dt, dims);
+    apply_viscosity(ω, nx, ny, nu, dx, dy, dt, dims);
 }
 
-void advect_vorticity(float* ω, const float* x, const float* u, const float u0, const int nx, const int ny, const float dx, const float dy, const float dt) {
+void advect_vorticity(float* ω, const float* x, const float* u, const float u0, const int nx, const int ny, const float dx, const float dy, const float dt, const float* dims) {
     for(int i=0; i < nx; i++) {
         for(int j=0; j < ny; j++) {
             const int idx = j*nx + i;
@@ -42,21 +43,43 @@ void advect_vorticity(float* ω, const float* x, const float* u, const float u0,
         }
     }
 }
-void apply_viscosity(float* ω, const int nx, const int ny, const float nu, const float dx, const float dy, const float dt) {
+void apply_viscosity(float* ω, const int nx, const int ny, const float nu, const float dx, const float dy, const float dt, const float* dims) {
+
     const float inv_dx_squared = 1.0f / (dx * dx);
     const float inv_dy_squared = 1.0f / (dy * dy);
+    const float dξ = 1.0f/nx;
+    const float dη = 1.0f/ny;
+    const float inv_dξ_squared = 1.0f / (dξ * dξ);
+    const float inv_dη_squared = 1.0f / (dη * dη);
+    const float inv_dξdη = 1.0f / (dξ * dη);
     if(dt > 0.5f * (1/(nu * (inv_dx_squared + inv_dy_squared)))) {
         print("Warning: Time step may be too large for stability with the given viscosity.");
     }
+    const float a = dims[0];
+    const float b = dims[1];
+    const float θ = dims[2];
+    const float ξx = 1/a;
+    const float ξy = 1/(std::tanf(θ) * a);
+    const float ηx = 0.0f;
+    const float ηy = 1/(std::sinf(θ) * b);
+
     for(int i=1; i < nx-1; i++) {
         for(int j=1; j < ny-1; j++) {
             const int idx = j*nx + i;
-            float ω_center = ω[idx];
-            float ω_left =  ω[j*nx + (i-1)];
-            float ω_right = ω[j*nx + (i+1)];
-            float ω_down = ω[(j-1)*nx + i];
-            float ω_up =  ω[(j+1)*nx + i];
-            float laplacian = (ω_left - 2*ω_center + ω_right) * inv_dx_squared + (ω_down - 2*ω_center + ω_up) * inv_dy_squared;
+            const float& ω_center = ω[idx];
+            const float& ω_left =  ω[j*nx + (i-1)];
+            const float& ω_right = ω[j*nx + (i+1)];
+            const float& ω_down = ω[(j-1)*nx + i];
+            const float& ω_up =  ω[(j+1)*nx + i];
+            const float& ω_down_left = ω[(j-1)*nx + (i-1)];
+            const float& ω_down_right = ω[(j-1)*nx + (i+1)];
+            const float& ω_up_left = ω[(j+1)*nx + (i-1)];
+            const float& ω_up_right = ω[(j+1)*nx + (i+1)];  
+            const float d2dξ2 = (ω_right - 2*ω_center + ω_left) * inv_dξ_squared;
+            const float d2dη2 = (ω_up - 2*ω_center + ω_down) * inv_dη_squared;
+            const float d2dξdη = (ω_up_right - ω_up_left - ω_down_right + ω_down_left) * 0.25f * inv_dξdη;
+            const float laplacian = d2dξ2*(ξx*ξx + ξy*ξy) + d2dη2*(ηx*ηx + ηy*ηy) + 2 * d2dξdη * (ξx*ηx + ξy*ηy);
+
             ω[idx] += nu * laplacian * dt;
         }
     }
