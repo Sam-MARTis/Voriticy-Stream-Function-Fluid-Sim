@@ -148,3 +148,43 @@ void solve_stream_function_update(float* ψ, const float* ω, const int nx, cons
     }
     delete[] ψ_new;
 }
+
+void solve_velocity_update(float* u, const float u0, const float* ψ, const int nx, const int ny, const float dx, const float dy, const float* dims) {
+    const float a = dims[0];
+    const float b = dims[1];
+    const float θ = dims[2];
+    const float ξx = 1/a;
+    const float ξy = 1/(std::tanf(θ) * a);
+    const float ηx = 0.0f;
+    const float ηy = 1/(std::sinf(θ) * b);
+    const float dξ = 1.0f/nx;
+    const float dη = 1.0f/ny;
+    const float t1 = ξy/(2*dξ);
+    const float t2 = ηx/(2*dη);
+    const float t3 = ξx/(2*dξ);
+    const float t4 = ηy/(2*dη);
+    for(int i=1; i < nx-1; i++) {
+        for(int j=1; j < ny-1; j++) {
+            const int idx = j*nx + i;
+            const float& ψ_left =  ψ[j*nx + (i-1)];
+            const float& ψ_right = ψ[j*nx + (i+1)];
+            const float& ψ_down = ψ[(j-1)*nx + i];
+            const float& ψ_up =  ψ[(j+1)*nx + i];
+            u[2*idx] = (ψ_right - ψ_left) * t1 + (ψ_up - ψ_down) * t2;
+            u[2*idx + 1] = -((ψ_right - ψ_left) * t3 + (ψ_up - ψ_down) * t4);
+        }
+    }
+    for(int i=0; i < nx; i++) {
+        u[nx*(ny-1)*2 + 2*i] = u0; // top boundary
+        u[nx*(ny-1)*2 + 2*i + 1] = 0.0f;
+        u[i*2] = 0.0f; // bottom boundary
+        u[i*2 + 1] = 0.0f;
+    }
+    for(int j=0; j < ny; j++) {
+        u[j*nx*2] = 0.0f; // left boundary
+        u[j*nx*2 + 1] = 0.0f;
+        u[j*nx*2 + (nx-1)*2] = 0.0f; // right boundary
+        u[j*nx*2 + (nx-1)*2 + 1] = 0.0f;
+    }
+    
+}
