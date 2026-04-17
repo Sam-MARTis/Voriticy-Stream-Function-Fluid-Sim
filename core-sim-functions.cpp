@@ -84,3 +84,67 @@ void apply_viscosity(float* ω, const int nx, const int ny, const float nu, cons
         }
     }
 }
+
+
+
+void solve_stream_function_update(float* ψ, const float* ω, const int nx, const int ny, const float dx, const float dy, const float* dims, const int max_iterations, const float tolerance) {
+    // Simple Jacobi iteration for solving Poisson equation ∇²ψ = -ω
+    float* ψ_new = new float[nx * ny];
+    for(int i=0; i<nx; i++){
+        ψ_new[i] = 0.0f; // top boundary
+        ψ[i] = 0.0f; 
+        ψ_new[(ny-1)*nx + i] = 0.0f; // bottom boundary
+        ψ[(ny-1)*nx + i] = 0.0f;
+    }
+    for(int j=0; j<ny; j++) {
+        ψ_new[j*nx] = 0.0f; // left boundary
+        ψ[j*nx] = 0.0f;
+        ψ_new[j*nx + (nx-1)] = 0.0f; // right boundary
+        ψ[j*nx + (nx-1)] = 0.0f;
+    }
+    const float inv_dx_squared = 1.0f / (dx * dx);
+    const float inv_dy_squared = 1.0f / (dy * dy);
+    const float dξ = 1.0f/nx;
+    const float dη = 1.0f/ny;
+    const float inv_dξ_squared = 1.0f / (dξ * dξ);
+    const float inv_dη_squared = 1.0f / (dη * dη);
+    const float inv_dξdη = 1.0f / (dξ * dη);
+    const float a = dims[0];
+    const float b = dims[1];
+    const float θ = dims[2];
+    const float ξx = 1/a;
+    const float ξy = 1/(std::tanf(θ) * a);
+    const float ηx = 0.0f;
+    const float ηy = 1/(std::sinf(θ) * b);
+    const float β = dξ/dη;
+    const float a1 = ξx*ξx + ξy*ξy;
+    const float a2 = (ξx*ηx + ξy*ηy) * 0.5 * β;
+    const float a3 = (ηx*ηx + ηy*ηy) * β * β;
+
+    for(int iter = 0; iter < max_iterations; iter++) {
+        float max_diff = 0.0f;
+        for(int i=1; i < nx-1; i++) {
+            for(int j=1; j < ny-1; j++) {
+                const int idx = j*nx + i;
+                const float& ψ_center = ψ[idx];
+                const float& ψ_left =  ψ[j*nx + (i-1)];
+                const float& ψ_right = ψ[j*nx + (i+1)];
+                const float& ψ_down = ψ[(j-1)*nx + i];
+                const float& ψ_up =  ψ[(j+1)*nx + i];
+                const float& ψ_down_left = ψ[(j-1)*nx + (i-1)];
+                const float& ψ_down_right = ψ[(j-1)*nx + (i+1)];
+                const float& ψ_up_left = ψ[(j+1)*nx + (i-1)];
+                const float& ψ_up_right = ψ[(j+1)*nx + (i+1)];  
+                const float rhs = -ω[idx];
+
+                ψ_new[idx] = (1/(2*(a1 + a3)))*(a1*(ψ_left + ψ_right) + a2*(ψ_up_right - ψ_up_left - ψ_down_right + ψ_down_left) + a3*(ψ_down + ψ_up) - rhs*dξ*dξ);
+                max_diff = std::max(max_diff, std::abs(ψ_new[idx] - ψ[idx]));
+            }
+        }
+        std::swap(ψ, ψ_new);
+        if(max_diff < tolerance) {
+            break;
+        }
+    }
+    delete[] ψ_new;
+}
