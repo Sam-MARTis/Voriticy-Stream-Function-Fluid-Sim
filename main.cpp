@@ -18,7 +18,7 @@ const int SCREEN_OFFSET_Y = SCREEN_OFFSET_Y_default;
 const int SCREEN_END_X_PADDING = SCREEN_END_X_PADDING_default;
 const int SCREEN_END_Y_PADDING = SCREEN_END_Y_PADDING_default;
 
-void main() {
+int main() {
     const float a = 10.0f;
     const float b = 10.0f;
     const float θ = M_PI/2;
@@ -60,4 +60,5 @@ void main() {
     delete[] ψ;
     delete[] ω;
     delete[] u;
+    return 0;
 }

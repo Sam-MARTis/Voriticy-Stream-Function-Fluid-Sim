@@ -1,7 +1,9 @@
+#include <iostream>
+#include <string>
 #include <cmath>
 #include "constants.hpp"
 
-void print(const auto& message) {
+void print(const std::string& message) {
     std::cout << message << std::endl;
 }
 
