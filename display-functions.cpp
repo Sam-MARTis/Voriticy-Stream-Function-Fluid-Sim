@@ -1,7 +1,7 @@
 #include<SFML/Graphics.hpp>
 #include <cmath>
 
-void render_velocities(const float* x, const float* u, const float normalization_factor, const float* origin, const float* scaling, sf::RenderWindow& window) {
+void render_velocities(const float* x, const float* u, const float normalization_factor, const float* origin, const float scaling[2], sf::RenderWindow& window) {
     const float inv_normalization_factor = 1.0f / normalization_factor;
     for(int i=0; i < 100; i++) {
         float px = origin[0] + x[2*i] * scaling[0];
