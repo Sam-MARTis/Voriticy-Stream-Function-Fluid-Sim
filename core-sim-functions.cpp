@@ -7,7 +7,7 @@ void advect_vorticity(float* ω, const float* x, const float* u, float u0, int n
 void apply_viscosity(float* ω, int nx, int ny, float nu, float dt, const float* dims);
 
 void solve_vorticity_transport(float* ω, const float* x, const float* u, const float u0, const float* ψ, const int nx, const int ny,const float nu, const float dt, const float* dims) {
-    advect_vorticity(ω, x, u, u0, nx, ny, dt, dims);
+    // advect_vorticity(ω, x, u, u0, nx, ny, dt, dims);
     apply_viscosity(ω, nx, ny, nu, dt, dims);
     solve_boundary_vorticity_values(ω, u0, ψ, nx, ny, dims);
 }
@@ -96,6 +96,8 @@ void apply_viscosity(float* ω, const int nx, const int ny, const float nu, cons
 void solve_stream_function_update(float* ψ, const float* ω, const int nx, const int ny, const float* dims, const int max_iterations, const float tolerance) {
     // Simple Jacobi iteration for solving Poisson equation ∇²ψ = -ω
     float* ψ_new = new float[nx * ny];
+    float* ψ_curr = ψ;
+    float* ψ_next = ψ_new;
     for(int i=0; i<nx; i++){
         ψ_new[i] = 0.0f; // top boundary
         ψ[i] = 0.0f; 
@@ -132,26 +134,30 @@ void solve_stream_function_update(float* ψ, const float* ω, const int nx, cons
         for(int i=1; i < nx-1; i++) {
             for(int j=1; j < ny-1; j++) {
                 const int idx = j*nx + i;
-                const float& ψ_center = ψ[idx];
-                const float& ψ_left =  ψ[j*nx + (i-1)];
-                const float& ψ_right = ψ[j*nx + (i+1)];
-                const float& ψ_down = ψ[(j-1)*nx + i];
-                const float& ψ_up =  ψ[(j+1)*nx + i];
-                const float& ψ_down_left = ψ[(j-1)*nx + (i-1)];
-                const float& ψ_down_right = ψ[(j-1)*nx + (i+1)];
-                const float& ψ_up_left = ψ[(j+1)*nx + (i-1)];
-                const float& ψ_up_right = ψ[(j+1)*nx + (i+1)];  
+                const float& ψ_left =  ψ_curr[j*nx + (i-1)];
+                const float& ψ_right = ψ_curr[j*nx + (i+1)];
+                const float& ψ_down = ψ_curr[(j-1)*nx + i];
+                const float& ψ_up =  ψ_curr[(j+1)*nx + i];
+                const float& ψ_down_left = ψ_curr[(j-1)*nx + (i-1)];
+                const float& ψ_down_right = ψ_curr[(j-1)*nx + (i+1)];
+                const float& ψ_up_left = ψ_curr[(j+1)*nx + (i-1)];
+                const float& ψ_up_right = ψ_curr[(j+1)*nx + (i+1)];  
                 const float rhs = -ω[idx];
 
-                ψ_new[idx] = (1/(2*(a1 + a3)))*(a1*(ψ_left + ψ_right) + a2*(ψ_up_right - ψ_up_left - ψ_down_right + ψ_down_left) + a3*(ψ_down + ψ_up) - rhs*dξ*dξ);
-                max_diff = std::max(max_diff, std::abs(ψ_new[idx] - ψ[idx]));
+                ψ_next[idx] = (1/(2*(a1 + a3)))*(a1*(ψ_left + ψ_right) + a2*(ψ_up_right - ψ_up_left - ψ_down_right + ψ_down_left) + a3*(ψ_down + ψ_up) - rhs*dξ*dξ);
+                max_diff = std::max(max_diff, std::abs(ψ_next[idx] - ψ_curr[idx]));
             }
         }
-        std::swap(ψ, ψ_new);
+        std::swap(ψ_curr, ψ_next);
         if(max_diff < tolerance) {
             break;
         }
     }
+
+    if(ψ_curr != ψ) {
+        std::copy(ψ_curr, ψ_curr + (nx * ny), ψ);
+    }
+
     delete[] ψ_new;
 }
 

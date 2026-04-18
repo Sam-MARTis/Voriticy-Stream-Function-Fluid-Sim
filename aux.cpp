@@ -13,8 +13,8 @@ void find_velocity_at_point(float& u_x, float& u_y, const float px, const float 
     const float θ = dims[2];
     const float pξ = (px - py/std::tan(θ)) / a;
     const float pη = py/(b * std::sin(θ));
-    const float dξ = 1/nx;
-    const float dη = 1/ny;
+    const float dξ = 1.0f / nx;
+    const float dη = 1.0f / ny;
     const int i = static_cast<int>(pξ / dξ);
     const int j = static_cast<int>(pη / dη);
     // const int i = static_cast<int>(px / dx);
@@ -51,14 +51,18 @@ void find_vorticity_at_point(float& ω_val, const float px, const float py, cons
     const float θ = dims[2];
     const float pξ = (px - py/std::tan(θ)) / a;
     const float pη = py/(b * std::sin(θ));
-    const float dξ = 1/nx;
-    const float dη = 1/ny;
+    const float dξ = 1.0f / nx;
+    const float dη = 1.0f / ny;
     const int i = static_cast<int>(pξ / dξ);
     const int j = static_cast<int>(pη / dη);
     const float i_frac = (px - i * dξ) / dξ;
     const float j_frac = (py - j * dη) / dη;
     float ω_local[4] = {0, 0, 0, 0}; // bottom left, top left, top right, bottom right
-    if((i < 0 && (1-i_frac) > EPSILON1) || (i >= nx-1 && i_frac > EPSILON1) || (j < 0 && (1-j_frac) > EPSILON1) || (j >= ny-1 && j_frac > EPSILON1)) {
+    // if((i < 0 && (1-i_frac) > EPSILON1) || (i >= nx-1 && i_frac > EPSILON1) || (j < 0 && (1-j_frac) > EPSILON1) || (j >= ny-1 && j_frac > EPSILON1)) {
+    //     ω_val = 0.0f;
+    //     return;
+    // }
+    if((i < 0) || (i >= nx-1) || (j < 0) || (j >= ny-1)) {
         ω_val = 0.0f;
         return;
     }
