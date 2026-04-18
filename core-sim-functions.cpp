@@ -186,5 +186,60 @@ void solve_velocity_update(float* u, const float u0, const float* ψ, const int 
         u[j*nx*2 + (nx-1)*2] = 0.0f; // right boundary
         u[j*nx*2 + (nx-1)*2 + 1] = 0.0f;
     }
-    
+}
+
+void solve_boundary_vorticity_values(float* ω, const float u0, const float* ψ, const int nx, const int ny, const float dx, const float dy, const float* dims) {
+    const float a = dims[0];
+    const float b = dims[1];
+    const float θ = dims[2];
+    const float ξx = 1/a;
+    const float ξy = 1/(std::tanf(θ) * a);
+    const float ηx = 0.0f;
+    const float ηy = 1/(std::sinf(θ) * b);
+    const float dξ = 1.0f/nx;
+    const float dη = 1.0f/ny;
+    const float a1 = (ξx*ξx + ξy*ξy)/(dξ*dξ);
+    const float a2 = (ξx*ηx + ξy*ηy)/(4*dξ*dη);
+    const float a3 = (ηx*ηx + ηy*ηy)/(dη*dη);
+    const float yη = std::sinf(θ) * b;
+    for(int i=0; i < nx; i++) {
+        const bool is_valid_horiz_walls  = (ψ[i] == 0.0f) && (ψ[(ny-1)*nx + i] == 0.0f);
+        if(!is_valid_horiz_walls) {
+            print("Error: Stream function values at horizontal boundaries must be zero for correct vorticity boundary conditions.");
+            return;
+        }
+    }
+    for(int j=0; j < ny; j++) {
+        const bool is_valid_vert_walls  = (ψ[j*nx] == 0.0f) && (ψ[j*nx + (nx-1)] == 0.0f);
+        if(!is_valid_vert_walls) {
+            print("Error: Stream function values at vertical boundaries must be zero for correct vorticity boundary conditions.");
+            return;
+        }
+    }
+
+    for(int j=1; j < ny-1; j++) {
+        // Wall 1
+        ω[j*nx] = -2*(a1*ψ[j*nx + 1] + a2*(ψ[(j+1)*nx + 1] - ψ[(j-1)*nx + 1]));
+
+        // Wall 3
+        // const float d2ψdξdη_right = -(ψ[(j+1)*nx + (nx-2)] - ψ[(j-1)*nx + (nx-2)])/(4*dξ*dη);
+        ω[j*nx + (nx-1)] = -2*(a1*ψ[j*nx + (nx-2)]+ a2*(-(ψ[(j+1)*nx + (nx-2)] - ψ[(j-1)*nx + (nx-2)])));
+    }
+
+    for(int i=1; i < nx-1; i++) {
+        // Wall 2
+        // const float d2ψdξdη_bottom = (ψ[nx + (i+1)] - ψ[nx + (i-1)] );
+        ω[i] = -2*((ψ[nx + (i+1)] - ψ[nx + (i-1)] ) * a2 + a3*ψ[nx + i]);
+        
+        // Wall 4
+        // const float d2ψdξdη_top = -(ψ[(ny-1)*nx + (i+1)] - ψ[(ny-1)*nx + (i-1)])/(4*dξ*dη);
+        ω[(ny-1)*nx + i] = -2*(-(ψ[(ny-1)*nx + (i+1)] - ψ[(ny-1)*nx + (i-1)] ) * a2 + a3*(ψ[(ny-1)*nx + i] + u0*yη));
+
+    }
+
+    // Corner points
+    ω[0] = -2*(a2*(ψ[nx + 1])); // Bottom-left corner
+    ω[(ny-1)*nx] = -2*(-a2*ψ[((ny-1)-1)*nx + 1]); // Top-left corner
+    ω[(nx-1)] = -2*(a2*(-(ψ[nx + (nx-2)]))); // Bottom-right corner
+    ω[ny*nx -1] = -2*( a2*(ψ[((ny-1)-1)*nx + (nx-2)])); // Top-right corner
 }
