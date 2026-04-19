@@ -80,11 +80,11 @@ int main() {
 
         solve_vorticity_transport(ω, x, u, u0, ψ, NX, NY, nu, dt, dims);
 
-        solve_stream_function_update(ψ, ω, NX, NY, dims, 10000, 1e-6f);
+        // solve_stream_function_update(ψ, ω, NX, NY, dims, 10000, 1e-6f);
 
-        solve_velocity_update(u, u0, ψ, NX, NY, dims);
+        // solve_velocity_update(u, u0, ψ, NX, NY, dims);
 
-        solve_boundary_vorticity_values(ω, u0, ψ, NX, NY, dims);
+        // solve_boundary_vorticity_values(ω, u0, ψ, NX, NY, dims);
 
         window.clear(sf::Color::Black);
 

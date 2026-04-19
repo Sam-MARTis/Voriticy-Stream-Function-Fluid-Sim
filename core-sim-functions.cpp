@@ -13,6 +13,7 @@ void solve_vorticity_transport(float* ω, const float* x, const float* u, const 
 }
 
 void advect_vorticity(float* ω, const float* x, const float* u, const float u0, const int nx, const int ny, const float dt, const float* dims) {
+    float* ω_new = new float[nx * ny];
     for(int i=0; i < nx; i++) {
         for(int j=0; j < ny; j++) {
             const int idx = j*nx + i;
@@ -45,9 +46,12 @@ void advect_vorticity(float* ω, const float* x, const float* u, const float u0,
 
             float ω_back;
             find_vorticity_at_point(ω_back, back_px, back_py, ω, nx, ny, dims);
-            ω[idx] = ω_back;
+            ω_new[idx] = ω_back;
         }
     }
+    std::copy(ω_new, ω_new + (nx * ny), ω);
+    delete[] ω_new;
+
 }
 void apply_viscosity(float* ω, const int nx, const int ny, const float nu, const float dt, const float* dims) {
 
