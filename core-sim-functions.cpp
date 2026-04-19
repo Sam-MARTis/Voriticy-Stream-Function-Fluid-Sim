@@ -2,6 +2,7 @@
 #include "core-sim-functions.hpp"
 #include <algorithm> 
 #include <cmath>
+#include <iostream>
 
 void advect_vorticity(float* ω, const float* x, const float* u, float u0, int nx, int ny, float dt, const float* dims);
 void apply_viscosity(float* ω, int nx, int ny, float nu, float dt, const float* dims);
@@ -18,6 +19,8 @@ void solve_vorticity_transport(float* ω, const float* x, const float* u, const 
 
 void advect_vorticity(float* ω, const float* x, const float* u, const float u0, const int nx, const int ny, const float dt, const float* dims) {
     float* ω_new = new float[nx * ny];
+    std::cout<<"Advecting vorticity with dt: "<<dt<<std::endl;
+     const float a = dims[0];
     for(int i=0; i < nx; i++) {
         for(int j=0; j < ny; j++) {
             const int idx = j*nx + i;

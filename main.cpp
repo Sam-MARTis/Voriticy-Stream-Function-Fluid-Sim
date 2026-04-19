@@ -48,7 +48,7 @@ int main() {
     // const float dy = 0.01f;
 
     const float nu = 0.1f;
-    const float dt = 0.00001f;
+    const float dt = 0.0001f;
     const float u0 = 1.0f;
     const float origin[2] = {static_cast<float>(SCREEN_OFFSET_X), static_cast<float>(SCREEN_OFFSET_Y)};
     const float dims[3] = {a, b, θ};

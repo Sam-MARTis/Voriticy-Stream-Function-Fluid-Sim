@@ -15,8 +15,8 @@ void find_velocity_at_point(float& u_x, float& u_y, const float px, const float 
     const float pη = py/(b * std::sin(θ));
     const float dξ = 1.0f / nx;
     const float dη = 1.0f / ny;
-    const int i = static_cast<int>(pξ / dξ);
-    const int j = static_cast<int>(pη / dη);
+    const int i = static_cast<int>(std::floor(pξ / dξ));
+    const int j = static_cast<int>(std::floor(pη / dη));
     // const int i = static_cast<int>(px / dx);
     // const int j = static_cast<int>(py / dy);
     if(i < 0 || i >= nx-1 || j < 0) {
@@ -24,8 +24,8 @@ void find_velocity_at_point(float& u_x, float& u_y, const float px, const float 
         u_y = 0.0f;
         return;
     }
-    const float i_frac = (px - i * dξ) / dξ;
-    const float j_frac = (py - j * dη) / dη;
+    const float i_frac = (pξ - i * dξ) / dξ;
+    const float j_frac = (pη - j * dη) / dη;
     float ux[4] = {0, 0, 0, 0}; // bottom left, top left, top right, bottom right
     float uy[4] = {0, 0, 0, 0};
     ux[0] = u[2*(j*nx + i)];
@@ -53,10 +53,10 @@ void find_vorticity_at_point(float& ω_val, const float px, const float py, cons
     const float pη = py/(b * std::sin(θ));
     const float dξ = 1.0f / nx;
     const float dη = 1.0f / ny;
-    const int i = static_cast<int>(pξ / dξ);
-    const int j = static_cast<int>(pη / dη);
-    const float i_frac = (px - i * dξ) / dξ;
-    const float j_frac = (py - j * dη) / dη;
+    const int i = static_cast<int>(std::floor(pξ / dξ));
+    const int j = static_cast<int>(std::floor(pη / dη));
+    const float i_frac = (pξ - i * dξ) / dξ;
+    const float j_frac = (pη - j * dη) / dη;
     float ω_local[4] = {0, 0, 0, 0}; // bottom left, top left, top right, bottom right
     // if((i < 0 && (1-i_frac) > EPSILON1) || (i >= nx-1 && i_frac > EPSILON1) || (j < 0 && (1-j_frac) > EPSILON1) || (j >= ny-1 && j_frac > EPSILON1)) {
     //     ω_val = 0.0f;
