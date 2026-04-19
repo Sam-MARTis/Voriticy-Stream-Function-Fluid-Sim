@@ -47,8 +47,8 @@ int main() {
     // const float dx = ;
     // const float dy = 0.01f;
 
-    const float nu = 0.1f;
-    const float dt = 0.0001f;
+    float nu = 1.0f;
+    const float dt = 0.01f;
     const float u0 = 1.0f;
     const float origin[2] = {static_cast<float>(SCREEN_OFFSET_X), static_cast<float>(SCREEN_OFFSET_Y)};
     const float dims[3] = {a, b, θ};
@@ -136,6 +136,7 @@ int main() {
         ImGui::Text("Vorticity");
         ImGui::Checkbox("Advect Vorticity", &enable_advect_vorticity);
         ImGui::Checkbox("Apply Viscosity", &enable_apply_viscosity);
+        ImGui::SliderFloat("Viscosity", &nu, 0.0f, 50.0f, "%.4f");
         const char* render_modes[] = {"None", "Vorticity", "Stream Function"};
         ImGui::Combo("Field", &render_mode, render_modes, IM_ARRAYSIZE(render_modes));
         ImGui::ColorEdit3("Low Colour", low_colour);
@@ -158,7 +159,7 @@ int main() {
 
         if(is_running || do_single_step) {
             solve_vorticity_transport(ω, x, u, u0, ψ, NX, NY, nu, dt, dims, enable_advect_vorticity, enable_apply_viscosity);
-            solve_stream_function_update(ψ, ω, NX, NY, dims, 10000, 1e-6f);
+            solve_stream_function_update(ψ, ω, NX, NY, dims, 100000, 1e-8f);
             solve_velocity_update(u, u0, ψ, NX, NY, dims);
             iter++;
 
