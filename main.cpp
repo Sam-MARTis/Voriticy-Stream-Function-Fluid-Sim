@@ -1,6 +1,7 @@
 #include<iostream>
 #include<cmath>
 #include<SFML/Graphics.hpp>
+#include "aux.hpp"
 #include "constants.hpp"
 #include "core-sim-functions.hpp"
 #include "display-functions.hpp"
@@ -18,10 +19,28 @@ const int SCREEN_OFFSET_Y = SCREEN_OFFSET_Y_default;
 const int SCREEN_END_X_PADDING = SCREEN_END_X_PADDING_default;
 const int SCREEN_END_Y_PADDING = SCREEN_END_Y_PADDING_default;
 
+bool map_screen_to_world(const sf::Vector2i& screen_point,
+                         float& world_x,
+                         float& world_y,
+                         const float origin[2],
+                         const float scaling[2],
+                         const float* dims) {
+    world_x = (static_cast<float>(screen_point.x) - origin[0]) / scaling[0];
+    world_y = (static_cast<float>(screen_point.y) - origin[1]) / scaling[1];
+
+    const float a = dims[0];
+    const float b = dims[1];
+    const float theta = dims[2];
+    const float p_xi = (world_x - world_y / std::tan(theta)) / a;
+    const float p_eta = world_y / (b * std::sin(theta));
+
+    return p_xi >= 0.0f && p_xi <= 1.0f && p_eta >= 0.0f && p_eta <= 1.0f;
+}
+
 int main() {
     const float a = 10.0f;
     const float b = 10.0f;
-    const float θ = M_PI/2;
+    const float θ = M_PI/2.0f;
 
     // const int NX = 100;
     // const int NY = 100;
@@ -51,6 +70,15 @@ int main() {
     float low_colour[3] = {0.0f, 0.0f, 1.0f};
     float high_colour[3] = {1.0f, 0.0f, 0.0f};
     int iter = 0;
+    bool is_running = false;
+    bool enable_advect_vorticity = true;
+    bool enable_apply_viscosity = true;
+    bool has_selected_point = false;
+    float selected_world_x = 0.0f;
+    float selected_world_y = 0.0f;
+    float selected_u_x = 0.0f;
+    float selected_u_y = 0.0f;
+    float selected_omega = 0.0f;
     sf::Clock deltaClock;
 
 
@@ -63,12 +91,51 @@ int main() {
             if(event->is<sf::Event::Closed>()) {
                 window.close();
             }
+            if(const auto* mouse_button = event->getIf<sf::Event::MouseButtonPressed>()) {
+                if(mouse_button->button == sf::Mouse::Button::Left && !ImGui::GetIO().WantCaptureMouse) {
+                    const sf::Vector2i mouse_pos = sf::Mouse::getPosition(window);
+                    float world_x = 0.0f;
+                    float world_y = 0.0f;
+                    const bool is_inside_domain = map_screen_to_world(mouse_pos, world_x, world_y, origin, scaling, dims);
+                    if(is_inside_domain) {
+                        has_selected_point = true;
+                        selected_world_x = world_x;
+                        selected_world_y = world_y;
+                        find_velocity_at_point(selected_u_x, selected_u_y, selected_world_x, selected_world_y, u, u0, NX, NY, dims);
+                        find_vorticity_at_point(selected_omega, selected_world_x, selected_world_y, ω, NX, NY, dims);
+                    } else {
+                        has_selected_point = false;
+                    }
+                }
+            }
         }
 
         ImGui::SFML::Update(window, deltaClock.restart());
 
         ImGui::Begin("Render Controls");
+        bool do_single_step = false;
         ImGui::Text("Iteration: %d", iter);
+        if(!is_running) {
+            if(ImGui::Button("Start")) {
+                is_running = true;
+            }
+            ImGui::SameLine();
+            if(ImGui::Button("Step")) {
+                do_single_step = true;
+            }
+        } else {
+            if(ImGui::Button("Stop")) {
+                is_running = false;
+            }
+            ImGui::SameLine();
+            if(ImGui::Button("Step")) {
+                do_single_step = true;
+            }
+        }
+        ImGui::Separator();
+        ImGui::Text("Vorticity");
+        ImGui::Checkbox("Advect Vorticity", &enable_advect_vorticity);
+        ImGui::Checkbox("Apply Viscosity", &enable_apply_viscosity);
         const char* render_modes[] = {"None", "Vorticity", "Stream Function"};
         ImGui::Combo("Field", &render_mode, render_modes, IM_ARRAYSIZE(render_modes));
         ImGui::ColorEdit3("Low Colour", low_colour);
@@ -76,15 +143,30 @@ int main() {
         ImGui::Checkbox("Render Velocities", &render_velocities_enabled);
         ImGui::SliderFloat("Normalization", &normalization_constant, 0.01f, 20.0f, "%.3f");
         ImGui::SliderInt("Thickness", &velocity_thickness, 1, 10);
+        ImGui::Separator();
+        ImGui::Text("Point Characteristics");
+        if(has_selected_point) {
+            ImGui::Text("x: %.5f", selected_world_x);
+            ImGui::Text("y: %.5f", selected_world_y);
+            ImGui::Text("vx: %.5f", selected_u_x);
+            ImGui::Text("vy: %.5f", selected_u_y);
+            ImGui::Text("vorticity: %.5f", selected_omega);
+        } else {
+            ImGui::Text("Click inside the fluid domain to sample.");
+        }
         ImGui::End();
 
-        solve_vorticity_transport(ω, x, u, u0, ψ, NX, NY, nu, dt, dims);
+        if(is_running || do_single_step) {
+            solve_vorticity_transport(ω, x, u, u0, ψ, NX, NY, nu, dt, dims, enable_advect_vorticity, enable_apply_viscosity);
+            solve_stream_function_update(ψ, ω, NX, NY, dims, 10000, 1e-6f);
+            solve_velocity_update(u, u0, ψ, NX, NY, dims);
+            iter++;
 
-        // solve_stream_function_update(ψ, ω, NX, NY, dims, 10000, 1e-6f);
-
-        // solve_velocity_update(u, u0, ψ, NX, NY, dims);
-
-        // solve_boundary_vorticity_values(ω, u0, ψ, NX, NY, dims);
+            if(has_selected_point) {
+                find_velocity_at_point(selected_u_x, selected_u_y, selected_world_x, selected_world_y, u, u0, NX, NY, dims);
+                find_vorticity_at_point(selected_omega, selected_world_x, selected_world_y, ω, NX, NY, dims);
+            }
+        }
 
         window.clear(sf::Color::Black);
 
@@ -108,11 +190,6 @@ int main() {
         ImGui::SFML::Render(window);
         window.display();
 
-        if(iter % 10 == 0) {
-            std::cout << "Iteration: " << iter << std::endl;
-        }
-        std::cout << "u at center: " << u[static_cast<int>((NX/2)*NY*2)] << std::endl;
-        iter++;
     }
 
     ImGui::SFML::Shutdown();

@@ -6,9 +6,13 @@
 void advect_vorticity(float* ω, const float* x, const float* u, float u0, int nx, int ny, float dt, const float* dims);
 void apply_viscosity(float* ω, int nx, int ny, float nu, float dt, const float* dims);
 
-void solve_vorticity_transport(float* ω, const float* x, const float* u, const float u0, const float* ψ, const int nx, const int ny,const float nu, const float dt, const float* dims) {
-    // advect_vorticity(ω, x, u, u0, nx, ny, dt, dims);
-    apply_viscosity(ω, nx, ny, nu, dt, dims);
+void solve_vorticity_transport(float* ω, const float* x, const float* u, const float u0, const float* ψ, const int nx, const int ny,const float nu, const float dt, const float* dims, const bool enable_advect_vorticity, const bool enable_apply_viscosity) {
+    if(enable_advect_vorticity) {
+        advect_vorticity(ω, x, u, u0, nx, ny, dt, dims);
+    }
+    if(enable_apply_viscosity) {
+        apply_viscosity(ω, nx, ny, nu, dt, dims);
+    }
     solve_boundary_vorticity_values(ω, u0, ψ, nx, ny, dims);
 }
 
@@ -62,16 +66,16 @@ void apply_viscosity(float* ω, const int nx, const int ny, const float nu, cons
     const float inv_dξ_squared = 1.0f / (dξ * dξ);
     const float inv_dη_squared = 1.0f / (dη * dη);
     const float inv_dξdη = 1.0f / (dξ * dη);
-    if(dt > 0.5f * (1/(nu * (inv_dξ_squared + inv_dη_squared)))) {
+    if(dt > 0.5f * (1.0f/(nu * (inv_dξ_squared + inv_dη_squared)))) {
         print("Warning: Time step may be too large for stability with the given viscosity.");
     }
     const float a = dims[0];
     const float b = dims[1];
     const float θ = dims[2];
-    const float ξx = 1/a;
-    const float ξy = 1/(std::tanf(θ) * a);
+    const float ξx = 1.0f/a;
+    const float ξy = 1.0f/(std::tanf(θ) * a);
     const float ηx = 0.0f;
-    const float ηy = 1/(std::sinf(θ) * b);
+    const float ηy = 1.0f/(std::sinf(θ) * b);
 
     for(int i=1; i < nx-1; i++) {
         for(int j=1; j < ny-1; j++) {
@@ -124,13 +128,13 @@ void solve_stream_function_update(float* ψ, const float* ω, const int nx, cons
     const float a = dims[0];
     const float b = dims[1];
     const float θ = dims[2];
-    const float ξx = 1/a;
-    const float ξy = 1/(std::tanf(θ) * a);
+    const float ξx = 1.0f/a;
+    const float ξy = 1.0f/(std::tanf(θ) * a);
     const float ηx = 0.0f;
-    const float ηy = 1/(std::sinf(θ) * b);
+    const float ηy = 1.0f/(std::sinf(θ) * b);
     const float β = dξ/dη;
     const float a1 = ξx*ξx + ξy*ξy;
-    const float a2 = (ξx*ηx + ξy*ηy) * 0.5 * β;
+    const float a2 = (ξx*ηx + ξy*ηy) * 0.5f * β;
     const float a3 = (ηx*ηx + ηy*ηy) * β * β;
 
     for(int iter = 0; iter < max_iterations; iter++) {
@@ -169,16 +173,16 @@ void solve_velocity_update(float* u, const float u0, const float* ψ, const int 
     const float a = dims[0];
     const float b = dims[1];
     const float θ = dims[2];
-    const float ξx = 1/a;
-    const float ξy = 1/(std::tanf(θ) * a);
+    const float ξx = 1.0f/a;
+    const float ξy = 1.0f/(std::tanf(θ) * a);
     const float ηx = 0.0f;
-    const float ηy = 1/(std::sinf(θ) * b);
+    const float ηy = 1.0f/(std::sinf(θ) * b);
     const float dξ = 1.0f/nx;
     const float dη = 1.0f/ny;
     const float t1 = ξy/(2*dξ);
-    const float t2 = ηx/(2*dη);
+    const float t2 = ηy/(2*dη);
     const float t3 = ξx/(2*dξ);
-    const float t4 = ηy/(2*dη);
+    const float t4 = ηx/(2*dη);
     for(int i=1; i < nx-1; i++) {
         for(int j=1; j < ny-1; j++) {
             const int idx = j*nx + i;
@@ -208,10 +212,10 @@ void solve_boundary_vorticity_values(float* ω, const float u0, const float* ψ,
     const float a = dims[0];
     const float b = dims[1];
     const float θ = dims[2];
-    const float ξx = 1/a;
-    const float ξy = 1/(std::tanf(θ) * a);
+    const float ξx = 1.0f/a;
+    const float ξy = 1.0f/(std::tanf(θ) * a);
     const float ηx = 0.0f;
-    const float ηy = 1/(std::sinf(θ) * b);
+    const float ηy = 1.0f/(std::sinf(θ) * b);
     const float dξ = 1.0f/nx;
     const float dη = 1.0f/ny;
     const float a1 = (ξx*ξx + ξy*ξy)/(dξ*dξ);
