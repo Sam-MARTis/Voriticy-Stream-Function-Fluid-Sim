@@ -27,8 +27,10 @@ ifeq ($(strip $(SFML_LIBS)),)
 endif
 
 CXXFLAGS ?= -std=c++20 -O2 -Wall -Wextra
+OMPFLAGS ?= -fopenmp
 CPPFLAGS += -I. -Iimgui -Iimgui-sfml -DIMGUI_USER_CONFIG='"imconfig-SFML.h"' $(SFML_CFLAGS)
-LDFLAGS += $(SFML_LIBS) -lGL
+LDFLAGS += $(SFML_LIBS) -lGL $(OMPFLAGS)
+CXXFLAGS += $(OMPFLAGS)
 
 .PHONY: all build run clean help
 

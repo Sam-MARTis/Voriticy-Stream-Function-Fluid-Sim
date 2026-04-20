@@ -75,8 +75,10 @@ int main() {
     bool enable_advect_vorticity = true;
     bool enable_apply_viscosity = true;
     bool has_selected_point = false;
-    int stream_solver_iter_exponent = 6;
-    float stream_solver_tolerance_exponent = -5.0f;
+    int stream_solver_iter_exponent = 4;
+    float stream_solver_tolerance_exponent = -4.0f;
+    bool enable_solver_parallelization = false;
+    int solver_max_threads = 4;
     float stream_convergence_tolerance = 1e-5f;
     float stream_max_residual = 0.0f;
     bool stream_is_converged = false;
@@ -149,6 +151,10 @@ int main() {
         ImGui::SliderFloat("Viscosity", &nu, 0.0f, 50.0f, "%.4f");
         ImGui::Separator();
         ImGui::Text("Stream Function Solver");
+        ImGui::Checkbox("Enable Parallelization", &enable_solver_parallelization);
+        if(enable_solver_parallelization) {
+            ImGui::SliderInt("Max Threads", &solver_max_threads, 1, 64);
+        }
         ImGui::SliderInt("Iterations Exponent", &stream_solver_iter_exponent, 2, 7);
         ImGui::SliderFloat("Tolerance Exponent", &stream_solver_tolerance_exponent, -10.0f, -2.0f, "%.1f");
         const int stream_solver_max_iterations = static_cast<int>(std::pow(10.0f, stream_solver_iter_exponent));
@@ -180,6 +186,8 @@ int main() {
             ImGui::Text("Click inside the fluid domain to sample.");
         }
         ImGui::End();
+
+        set_solver_parallelization(enable_solver_parallelization, solver_max_threads);
 
         if(is_running || do_single_step) {
             const int stream_solver_max_iterations = static_cast<int>(std::pow(10.0f, stream_solver_iter_exponent));

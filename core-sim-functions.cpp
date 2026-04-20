@@ -3,6 +3,23 @@
 #include <algorithm> 
 #include <cmath>
 #include <iostream>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+static bool g_enable_solver_parallelization = false;
+
+void set_solver_parallelization(const bool enable_parallelization, const int max_threads) {
+    g_enable_solver_parallelization = enable_parallelization;
+#ifdef _OPENMP
+    if(g_enable_solver_parallelization) {
+        omp_set_dynamic(0);
+        omp_set_num_threads(std::max(1, max_threads));
+    }
+#else
+    (void)max_threads;
+#endif
+}
 
 // void advect_vorticity(float* ω, const float* x, const float* u, float u0, int nx, int ny, float dt, const float* dims);
 
@@ -27,6 +44,7 @@ void apply_viscosity(float* ω, const int nx, const int ny, const float nu, cons
     const float ηy = 1.0f/(std::sinf(θ) * b);
     float* ω_new = new float[nx * ny];
     std::copy(ω, ω + (nx * ny), ω_new);
+    #pragma omp parallel for collapse(2) if(g_enable_solver_parallelization)
     for(int i=1; i < nx-1; i++) {
         for(int j=1; j < ny-1; j++) {
             const int idx = j*nx + i;
@@ -55,6 +73,7 @@ void advect_vorticity(float* ω, const float* x, const float* u, const float u0,
     float* ω_new = new float[nx * ny];
     std::cout<<"Advecting vorticity with dt: "<<dt<<std::endl;
      const float a = dims[0];
+    #pragma omp parallel for collapse(2) if(g_enable_solver_parallelization)
     for(int i=0; i < nx; i++) {
         for(int j=0; j < ny; j++) {
             const int idx = j*nx + i;
@@ -113,6 +132,7 @@ void transport_vorticity_combined(float* ω, const float* x, const float* u, con
     const float ηy = 1.0f/(std::sinf(θ) * b);
 
     std::copy(ω, ω + (nx * ny), ω_new);
+    #pragma omp parallel for collapse(2) if(g_enable_solver_parallelization)
     for(int i=1; i < nx-1; i++) {
         for(int j=1; j < ny-1; j++) {
             const int idx = j*nx + i;
@@ -133,6 +153,7 @@ void transport_vorticity_combined(float* ω, const float* x, const float* u, con
             ω_new[idx] = ω[idx] + nu * laplacian * dt;
         }
     }
+    #pragma omp parallel for collapse(2) if(g_enable_solver_parallelization)
     for(int i=0; i < nx; i++) {
         for(int j=0; j < ny; j++) {
             const int idx = j*nx + i;
@@ -229,6 +250,7 @@ void solve_stream_function_update(float* ψ, const float* ω, const int nx, cons
 
     for(int iter = 0; iter < max_iterations; iter++) {
         float max_diff = 0.0f;
+        #pragma omp parallel for collapse(2) reduction(max:max_diff) if(g_enable_solver_parallelization)
         for(int i=1; i < nx-1; i++) {
             for(int j=1; j < ny-1; j++) {
                 const int idx = j*nx + i;
@@ -275,6 +297,7 @@ bool check_stream_function_convergence(const float* ψ, const float* ω, const i
     const float a3 = (ηx * ηx + ηy * ηy) * β * β;
 
     max_residual = 0.0f;
+    #pragma omp parallel for collapse(2) reduction(max:max_residual) if(g_enable_solver_parallelization)
     for(int i=1; i < nx-1; i++) {
         for(int j=1; j < ny-1; j++) {
             const int idx = j * nx + i;
@@ -315,6 +338,7 @@ void solve_velocity_update(float* u, const float u0, const float* ψ, const int 
     const float t2 = ηy/(2*dη);
     const float t3 = ξx/(2*dξ);
     const float t4 = ηx/(2*dη);
+    #pragma omp parallel for collapse(2) if(g_enable_solver_parallelization)
     for(int i=1; i < nx-1; i++) {
         for(int j=1; j < ny-1; j++) {
             const int idx = j*nx + i;
