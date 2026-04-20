@@ -71,10 +71,13 @@ int main() {
     float high_colour[3] = {1.0f, 0.0f, 0.0f};
     int iter = 0;
     bool is_running = false;
+    bool use_vorticity_operator_splitting = false;
     bool enable_advect_vorticity = true;
     bool enable_apply_viscosity = true;
     bool has_selected_point = false;
-    const float stream_convergence_tolerance = 1e-6f;
+    int stream_solver_iter_exponent = 6;
+    float stream_solver_tolerance_exponent = -5.0f;
+    float stream_convergence_tolerance = 1e-5f;
     float stream_max_residual = 0.0f;
     bool stream_is_converged = false;
     float selected_world_x = 0.0f;
@@ -138,9 +141,21 @@ int main() {
         }
         ImGui::Separator();
         ImGui::Text("Vorticity");
-        ImGui::Checkbox("Advect Vorticity", &enable_advect_vorticity);
-        ImGui::Checkbox("Apply Viscosity", &enable_apply_viscosity);
+        ImGui::Checkbox("Vorticity Operator Splitting", &use_vorticity_operator_splitting);
+        if(use_vorticity_operator_splitting) {
+            ImGui::Checkbox("Apply Viscosity", &enable_apply_viscosity);
+            ImGui::Checkbox("Advect Vorticity", &enable_advect_vorticity);
+        }
         ImGui::SliderFloat("Viscosity", &nu, 0.0f, 50.0f, "%.4f");
+        ImGui::Separator();
+        ImGui::Text("Stream Function Solver");
+        ImGui::SliderInt("Iterations Exponent", &stream_solver_iter_exponent, 2, 7);
+        ImGui::SliderFloat("Tolerance Exponent", &stream_solver_tolerance_exponent, -10.0f, -2.0f, "%.1f");
+        const int stream_solver_max_iterations = static_cast<int>(std::pow(10.0f, stream_solver_iter_exponent));
+        const float stream_solver_tolerance = std::pow(10.0f, stream_solver_tolerance_exponent);
+        stream_convergence_tolerance = stream_solver_tolerance;
+        ImGui::Text("Iterations: %d", stream_solver_max_iterations);
+        ImGui::Text("Tolerance: %.2e", stream_solver_tolerance);
         const char* render_modes[] = {"None", "Vorticity", "Stream Function"};
         ImGui::Combo("Field", &render_mode, render_modes, IM_ARRAYSIZE(render_modes));
         ImGui::ColorEdit3("Low Colour", low_colour);
@@ -167,8 +182,11 @@ int main() {
         ImGui::End();
 
         if(is_running || do_single_step) {
-            solve_vorticity_transport(ω, x, u, u0, ψ, NX, NY, nu, dt, dims, enable_advect_vorticity, enable_apply_viscosity);
-            solve_stream_function_update(ψ, ω, NX, NY, dims, 100000, 1e-8f);
+            const int stream_solver_max_iterations = static_cast<int>(std::pow(10.0f, stream_solver_iter_exponent));
+            const float stream_solver_tolerance = std::pow(10.0f, stream_solver_tolerance_exponent);
+            stream_convergence_tolerance = stream_solver_tolerance;
+            solve_vorticity_transport(ω, x, u, u0, ψ, NX, NY, nu, dt, dims, use_vorticity_operator_splitting, enable_apply_viscosity, enable_advect_vorticity);
+            solve_stream_function_update(ψ, ω, NX, NY, dims, stream_solver_max_iterations, stream_solver_tolerance);
             stream_is_converged = check_stream_function_convergence(ψ, ω, NX, NY, dims, stream_convergence_tolerance, stream_max_residual);
             solve_velocity_update(u, u0, ψ, NX, NY, dims);
             iter++;
