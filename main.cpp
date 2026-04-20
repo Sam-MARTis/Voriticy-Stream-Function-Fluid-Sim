@@ -47,9 +47,10 @@ int main() {
     // const float dx = ;
     // const float dy = 0.01f;
 
-    float nu = 1.0f;
     const float dt = 0.001f;
     const float u0 = 1.0f;
+    float reynolds_number = 100.0f;
+    float nu = u0 * std::sqrt(a * b) / reynolds_number;
     const float origin[2] = {static_cast<float>(SCREEN_OFFSET_X), static_cast<float>(SCREEN_OFFSET_Y + SCREEN_HEIGHT)};
     const float dims[3] = {a, b, θ};
     float* ψ = new float[NX*NY];
@@ -79,6 +80,7 @@ int main() {
     float stream_solver_tolerance_exponent = -4.0f;
     bool enable_solver_parallelization = false;
     int solver_max_threads = 4;
+    int iterations_per_render = 1;
     float stream_convergence_tolerance = 1e-5f;
     float stream_max_residual = 0.0f;
     bool stream_is_converged = false;
@@ -148,13 +150,21 @@ int main() {
             ImGui::Checkbox("Apply Viscosity", &enable_apply_viscosity);
             ImGui::Checkbox("Advect Vorticity", &enable_advect_vorticity);
         }
+        const bool reynolds_changed = ImGui::SliderFloat("Reynolds Number", &reynolds_number, 1.0f, 10000.0f, "%.2f");
+        if(reynolds_changed) {
+            nu = u0 * std::sqrt(a * b) / std::max(1.0f, reynolds_number);
+        }
         ImGui::SliderFloat("Viscosity", &nu, 0.0f, 50.0f, "%.4f");
+        if(ImGui::IsItemEdited()) {
+            reynolds_number = u0 * std::sqrt(a * b) / std::max(1e-6f, nu);
+        }
         ImGui::Separator();
         ImGui::Text("Stream Function Solver");
         ImGui::Checkbox("Enable Parallelization", &enable_solver_parallelization);
         if(enable_solver_parallelization) {
             ImGui::SliderInt("Max Threads", &solver_max_threads, 1, 64);
         }
+        ImGui::SliderInt("Iterations Per Render", &iterations_per_render, 1, 100);
         ImGui::SliderInt("Iterations Exponent", &stream_solver_iter_exponent, 2, 7);
         ImGui::SliderFloat("Tolerance Exponent", &stream_solver_tolerance_exponent, -10.0f, -2.0f, "%.1f");
         const int stream_solver_max_iterations = static_cast<int>(std::pow(10.0f, stream_solver_iter_exponent));
@@ -193,15 +203,18 @@ int main() {
             const int stream_solver_max_iterations = static_cast<int>(std::pow(10.0f, stream_solver_iter_exponent));
             const float stream_solver_tolerance = std::pow(10.0f, stream_solver_tolerance_exponent);
             stream_convergence_tolerance = stream_solver_tolerance;
-            solve_vorticity_transport(ω, x, u, u0, ψ, NX, NY, nu, dt, dims, use_vorticity_operator_splitting, enable_apply_viscosity, enable_advect_vorticity);
-            solve_stream_function_update(ψ, ω, NX, NY, dims, stream_solver_max_iterations, stream_solver_tolerance);
-            stream_is_converged = check_stream_function_convergence(ψ, ω, NX, NY, dims, stream_convergence_tolerance, stream_max_residual);
-            solve_velocity_update(u, u0, ψ, NX, NY, dims);
-            iter++;
+            const int solver_steps = is_running ? iterations_per_render : 1;
+            for(int step = 0; step < solver_steps; step++) {
+                solve_vorticity_transport(ω, x, u, u0, ψ, NX, NY, nu, dt, dims, use_vorticity_operator_splitting, enable_apply_viscosity, enable_advect_vorticity);
+                solve_stream_function_update(ψ, ω, NX, NY, dims, stream_solver_max_iterations, stream_solver_tolerance);
+                stream_is_converged = check_stream_function_convergence(ψ, ω, NX, NY, dims, stream_convergence_tolerance, stream_max_residual);
+                solve_velocity_update(u, u0, ψ, NX, NY, dims);
+                iter++;
 
-            if(has_selected_point) {
-                find_velocity_at_point(selected_u_x, selected_u_y, selected_world_x, selected_world_y, u, u0, NX, NY, dims);
-                find_vorticity_at_point(selected_omega, selected_world_x, selected_world_y, ω, NX, NY, dims);
+                if(has_selected_point) {
+                    find_velocity_at_point(selected_u_x, selected_u_y, selected_world_x, selected_world_y, u, u0, NX, NY, dims);
+                    find_vorticity_at_point(selected_omega, selected_world_x, selected_world_y, ω, NX, NY, dims);
+                }
             }
         }
 
