@@ -10,8 +10,8 @@
 #include "imgui-SFML.h"
 
 sf::RenderWindow window;
-const int NX = 30;
-const int NY = 30;
+const int NX = 50;
+const int NY = 50;
 const int SCREEN_WIDTH = SCREEN_WIDTH_default;
 const int SCREEN_HEIGHT = SCREEN_HEIGHT_default;
 const int SCREEN_OFFSET_X = SCREEN_OFFSET_X_default;
@@ -26,7 +26,7 @@ bool map_screen_to_world(const sf::Vector2i& screen_point,
                          const float scaling[2],
                          const float* dims) {
     world_x = (static_cast<float>(screen_point.x) - origin[0]) / scaling[0];
-    world_y = (static_cast<float>(screen_point.y) - origin[1]) / scaling[1];
+    world_y = (origin[1] - static_cast<float>(screen_point.y)) / scaling[1];
 
     const float a = dims[0];
     const float b = dims[1];
@@ -48,9 +48,9 @@ int main() {
     // const float dy = 0.01f;
 
     float nu = 1.0f;
-    const float dt = 0.01f;
+    const float dt = 0.001f;
     const float u0 = 1.0f;
-    const float origin[2] = {static_cast<float>(SCREEN_OFFSET_X), static_cast<float>(SCREEN_OFFSET_Y)};
+    const float origin[2] = {static_cast<float>(SCREEN_OFFSET_X), static_cast<float>(SCREEN_OFFSET_Y + SCREEN_HEIGHT)};
     const float dims[3] = {a, b, θ};
     float* ψ = new float[NX*NY];
     float* ω = new float[NX*NY];

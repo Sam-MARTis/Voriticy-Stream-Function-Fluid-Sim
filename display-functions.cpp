@@ -43,7 +43,7 @@ void render_scalar_field(const float* x,
     for(int idx = 0; idx < count; idx++) {
         const float normalized = (values[idx] - min_val) / range;
         cell.setFillColor(interpolate_colour(low_colour, high_colour, normalized));
-        cell.setPosition(sf::Vector2f(origin[0] + x[2 * idx] * scaling[0], origin[1] + x[2 * idx + 1] * scaling[1]));
+        cell.setPosition(sf::Vector2f(origin[0] + x[2 * idx] * scaling[0], origin[1] - x[2 * idx + 1] * scaling[1]));
         window.draw(cell);
     }
 }
@@ -65,9 +65,9 @@ void render_velocities(const float* x,
         for(int i = 0; i < nx; i += stride) {
             const int idx = j * nx + i;
             const float px = origin[0] + x[2 * idx] * scaling[0];
-            const float py = origin[1] + x[2 * idx + 1] * scaling[1];
+            const float py = origin[1] - x[2 * idx + 1] * scaling[1];
             const float u_x = u[2 * idx] * inv_normalization_factor;
-            const float u_y = u[2 * idx + 1] * inv_normalization_factor;
+            const float u_y = -u[2 * idx + 1] * inv_normalization_factor;
             draw_arrow(px, py, u_x, u_y, window, thickness);
         }
     }
