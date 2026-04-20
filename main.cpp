@@ -74,6 +74,9 @@ int main() {
     bool enable_advect_vorticity = true;
     bool enable_apply_viscosity = true;
     bool has_selected_point = false;
+    const float stream_convergence_tolerance = 1e-6f;
+    float stream_max_residual = 0.0f;
+    bool stream_is_converged = false;
     float selected_world_x = 0.0f;
     float selected_world_y = 0.0f;
     float selected_u_x = 0.0f;
@@ -84,6 +87,7 @@ int main() {
 
 
     setup_inital_state(ψ, ω, x, u, NX, NY, dims, u0);
+    stream_is_converged = check_stream_function_convergence(ψ, ω, NX, NY, dims, stream_convergence_tolerance, stream_max_residual);
     
     while(window.isOpen()) {
         while(const auto event = window.pollEvent()) {
@@ -145,6 +149,11 @@ int main() {
         ImGui::SliderFloat("Normalization", &normalization_constant, 0.01f, 20.0f, "%.3f");
         ImGui::SliderInt("Thickness", &velocity_thickness, 1, 10);
         ImGui::Separator();
+        ImGui::Text("Stream Function Convergence");
+        ImGui::Text("Tolerance: %.2e", stream_convergence_tolerance);
+        ImGui::Text("Max residual: %.3e", stream_max_residual);
+        ImGui::Text("Status: %s", stream_is_converged ? "Converged" : "Not converged");
+        ImGui::Separator();
         ImGui::Text("Point Characteristics");
         if(has_selected_point) {
             ImGui::Text("x: %.5f", selected_world_x);
@@ -160,6 +169,7 @@ int main() {
         if(is_running || do_single_step) {
             solve_vorticity_transport(ω, x, u, u0, ψ, NX, NY, nu, dt, dims, enable_advect_vorticity, enable_apply_viscosity);
             solve_stream_function_update(ψ, ω, NX, NY, dims, 100000, 1e-8f);
+            stream_is_converged = check_stream_function_convergence(ψ, ω, NX, NY, dims, stream_convergence_tolerance, stream_max_residual);
             solve_velocity_update(u, u0, ψ, NX, NY, dims);
             iter++;
 

@@ -97,11 +97,11 @@ void advect_vorticity(float* ω, const float* x, const float* u, const float u0,
 
 
 void solve_vorticity_transport(float* ω, const float* x, const float* u, const float u0, const float* ψ, const int nx, const int ny,const float nu, const float dt, const float* dims, const bool enable_advect_vorticity, const bool enable_apply_viscosity) {
-    if(enable_advect_vorticity) {
-        advect_vorticity(ω, x, u, u0, nx, ny, dt, dims);
-    }
     if(enable_apply_viscosity) {
         apply_viscosity(ω, nx, ny, nu, dt, dims);
+    }
+    if(enable_advect_vorticity) {
+        advect_vorticity(ω, x, u, u0, nx, ny, dt, dims);
     }
     solve_boundary_vorticity_values(ω, u0, ψ, nx, ny, dims);
 }
@@ -174,6 +174,48 @@ void solve_stream_function_update(float* ψ, const float* ω, const int nx, cons
     }
 
     delete[] ψ_new;
+}
+
+bool check_stream_function_convergence(const float* ψ, const float* ω, const int nx, const int ny, const float* dims, const float tolerance, float& max_residual) {
+    const float dξ = 1.0f / nx;
+    const float dη = 1.0f / ny;
+    const float a = dims[0];
+    const float b = dims[1];
+    const float θ = dims[2];
+    const float ξx = 1.0f / a;
+    const float ξy = -1.0f / (std::tanf(θ) * a);
+    const float ηx = 0.0f;
+    const float ηy = 1.0f / (std::sinf(θ) * b);
+    const float β = dξ / dη;
+    const float a1 = ξx * ξx + ξy * ξy;
+    const float a2 = (ξx * ηx + ξy * ηy) * 0.5f * β;
+    const float a3 = (ηx * ηx + ηy * ηy) * β * β;
+
+    max_residual = 0.0f;
+    for(int i=1; i < nx-1; i++) {
+        for(int j=1; j < ny-1; j++) {
+            const int idx = j * nx + i;
+            const float& ψ_center = ψ[idx];
+            const float& ψ_left = ψ[j * nx + (i - 1)];
+            const float& ψ_right = ψ[j * nx + (i + 1)];
+            const float& ψ_down = ψ[(j - 1) * nx + i];
+            const float& ψ_up = ψ[(j + 1) * nx + i];
+            const float& ψ_down_left = ψ[(j - 1) * nx + (i - 1)];
+            const float& ψ_down_right = ψ[(j - 1) * nx + (i + 1)];
+            const float& ψ_up_left = ψ[(j + 1) * nx + (i - 1)];
+            const float& ψ_up_right = ψ[(j + 1) * nx + (i + 1)];
+
+            const float residual =
+                a1 * (ψ_left - 2.0f * ψ_center + ψ_right) +
+                a2 * (ψ_up_right - ψ_up_left - ψ_down_right + ψ_down_left) +
+                a3 * (ψ_down - 2.0f * ψ_center + ψ_up) +
+                ω[idx] * dξ * dξ;
+
+            max_residual = std::max(max_residual, std::abs(residual));
+        }
+    }
+
+    return max_residual < tolerance;
 }
 
 void solve_velocity_update(float* u, const float u0, const float* ψ, const int nx, const int ny, const float* dims) {
